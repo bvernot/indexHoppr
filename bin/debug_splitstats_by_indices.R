@@ -2,10 +2,13 @@
 
 args = commandArgs(trailingOnly=TRUE)
 
-if (length(args) < 3 || length(args) > 5) {
+if (length(args) < 4 || length(args) > 6) {
     stop('
 
-Rscript debug_splitstats_by_indices.R ncores splitsfile file_tag [fresh_kills_json]
+Usage:
+
+Rscript debug_splitstats_by_indices.R ncores n_sources_of_contam splitsfile file_tag [fresh_kills_json]
+
 You can download a new fresh_kills file with:
 curl "http://bioaps01:5984/default/_all_docs?include_docs=true" > freshkills.json
 
@@ -50,10 +53,11 @@ dynamic_require("doParallel")
 
 basedir <- '/mnt/expressions/benjamin_vernot/soil_capture_2017/process_sequencing/debug_contamination_mt'
 
-ncores <- args[1]
-splitsfile <- args[2]
-file_tag <- args[3]
-fresh_kills_json <- args[4]
+ncores <- as.integer(args[1])
+n_sources_of_contam <- as.integer(args[2])
+splitsfile <- args[3]
+file_tag <- args[4]
+fresh_kills_json <- args[5]
 if (is.na(fresh_kills_json)) {
     fresh_kills_json <- sprintf('%s/freshkills.json', basedir)
 }
@@ -102,7 +106,7 @@ names(rg.cat.colors) <- rg.cats
 # my.splits <- splits.mt.22401
 # my.splits <- splits.shotgun
 
-my.splits <- load_splitstats(splitsfile, compute.swaps = T)
+my.splits <- load_splitstats(splitsfile, n_sources_of_contam, compute.swaps = T)
 
 
 test.ids <- my.splits$test.ids

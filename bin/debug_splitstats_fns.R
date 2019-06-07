@@ -2,7 +2,7 @@
 
 
 
-load_splitstats <- function(split_stats_file,
+load_splitstats <- function(split_stats_file, n_top_target,
                             rg.thresh = 500, p57.thresh = 500,
                             compute.swaps = F) {
   dt.idx <- fread(split_stats_file)
@@ -82,11 +82,12 @@ load_splitstats <- function(split_stats_file,
               'split_file' = split_stats_file)
   
   if (compute.swaps) {
+      ## look for cross-contamination only in the expected libraries
       test.ids <- ret$dt.idx[RG.cat == 'expected', RG.full]
-      ## this number - 150 - determines how many libraries are considered putative candidates
+      ## this number - 150 - determines how many libraries are considered putative candidates as the sources of contamination
       ## this could be changed to get better stats e.g. for pools with a lower number of libraries in them
-      target.ids <- tail(ret$top.RG,150)
-      dt.swaps.bak <- compute_swaps(ret, test.ids, target.ids, r.target = 200)
+      target.ids <- tail(ret$top.RG, n_top_target)
+      dt.swaps.bak <- compute_swaps(ret, test.ids, target.ids, r.target = n_top_target)
       dt.swaps.test <- compute_swaps(ret, test.ids, target.ids)
       ret$dt.swaps.test <- dt.swaps.test
       ret$dt.swaps.bak <- dt.swaps.bak
