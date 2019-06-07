@@ -51,17 +51,27 @@ dynamic_require("doParallel")
 
 
 
-basedir <- '/mnt/expressions/benjamin_vernot/soil_capture_2017/process_sequencing/debug_contamination_mt'
+#basedir <- '/mnt/expressions/benjamin_vernot/soil_capture_2017/process_sequencing/debug_contamination_mt'
+
+initial.options <- commandArgs(trailingOnly = FALSE)
+file.arg.name <- "--file="
+script.name <- sub(file.arg.name, "", initial.options[grep(file.arg.name, initial.options)])
+basedir <- dirname(script.name)
+cat('script', script.name, '\n')
+cat('basedir', basedir, '\n')
+
 
 ncores <- as.integer(args[1])
 n_sources_of_contam <- as.integer(args[2])
 splitsfile <- args[3]
 file_tag <- args[4]
 fresh_kills_json <- args[5]
+use_fk <- T
 if (is.na(fresh_kills_json)) {
-    fresh_kills_json <- sprintf('%s/freshkills.json', basedir)
+    use_fk <- F
+    ## fresh_kills_json <- sprintf('%s/freshkills.json', basedir)
 }
-#basedir <- args[5]
+
 
 registerDoParallel(cores=ncores)
 getDoParWorkers()
@@ -72,7 +82,7 @@ print(length(args))
 
 
 ## loads functions and dt.fresh_kills - is slow
-source(sprintf('%s/fresh_kills_fns.R', basedir))
+if (use_fk) source(sprintf('%s/fresh_kills_fns.R', basedir))
 source(sprintf('%s/debug_splitstats_fns.R', basedir))
 
 ## allow the reading of multiple runs, and tag those runs (so we can see which wells come from 
@@ -125,10 +135,14 @@ plot_debug_splits <- function(my.splits) {
   nseqs.hist = 10
   dt.idx.hist_plotting <- my.splits$dt.idx.top[RG.cat != 'expected' & nseqs > nseqs.hist]
   nseqs.label = dt.idx.hist_plotting[RG.cat == 'in_fk', min(tail(sort(nseqs),5))]
-  dt.idx.hist_plotting[nseqs >= nseqs.label, desc := paste0(description_from_fresh_kills(roots_from_fresh_kills(p7ind, p5ind)), '_',
-                                                            dates_in_fresh_kills(my.id = roots_from_fresh_kills(p7ind, p5ind)),
-                                                            collapse = '\n'), .(p7ind, p5ind)]
-  dt.idx.hist_plotting[desc == '_', desc := NA]
+  if (use_fk) {
+      dt.idx.hist_plotting[nseqs >= nseqs.label, desc := paste0(description_from_fresh_kills(roots_from_fresh_kills(p7ind, p5ind)), '_',
+                                                                dates_in_fresh_kills(my.id = roots_from_fresh_kills(p7ind, p5ind)),
+                                                                collapse = '\n'), .(p7ind, p5ind)]
+      dt.idx.hist_plotting[desc == '_', desc := NA]
+  } else {
+      dt.idx.hist_plotting[, desc := NA]
+  }
   
   p1 <- ggplot(my.splits$dt.idx.top, aes(x=RG.fac, weight=nseqs/1e5, fill = RG.cat)) +
     geom_bar() + ylab('Read counts (100k)') + theme(axis.text.x = element_blank()) + xlab('Top Read Groups') +
@@ -213,7 +227,7 @@ plot_debug_splits <- function(my.splits) {
     NULL
   print(p1)
 
-
+  print(dt.swaps.test)
   p1 <- ggplot(dt.swaps.test[, y0, .(score=round(x-y))][score > 4], aes(x=y0)) + geom_histogram() + facet_wrap(~score, scales = 'free_y') + xlab('log(corner1/corner2) [facets are rounded scores]')
   print(p1)
 
@@ -234,12 +248,15 @@ plot_debug_splits <- function(my.splits) {
                                      x-y, id1.nseqs, id2.nseqs, x1.nseqs, x2.nseqs)]
     dt.id.label <- my.splits$dt.idx[RG.full == my.id1 | RG.full == my.id2]
     
-    
-    dt.id.label[, desc := paste0(RG, '_', description_from_fresh_kills(roots_from_fresh_kills(p7ind, p5ind)), '_',
-                                 dates_in_fresh_kills(my.id = roots_from_fresh_kills(p7ind, p5ind)),
-                                 collapse = '\n'), .(p7ind, p5ind)]
-    dt.id.label[desc == '__', desc := RG.full]
-    
+    if (use_fk) {
+        dt.id.label[, desc := paste0(RG, '_', description_from_fresh_kills(roots_from_fresh_kills(p7ind, p5ind)), '_',
+                                     dates_in_fresh_kills(my.id = roots_from_fresh_kills(p7ind, p5ind)),
+                                     collapse = '\n'), .(p7ind, p5ind)]
+        dt.id.label[desc == '__', desc := RG.full]
+    } else {
+        dt.id.label[, desc := RG.full]
+    }
+
     a = cbind(my.splits$dt.idx.top.p57[RG.full == my.id1, .(xmin = p7.fac.maxseqs, ymin = p5.fac.maxseqs)],
               my.splits$dt.idx.top.p57[RG.full == my.id2, .(xmax = p7.fac.maxseqs, ymax = p5.fac.maxseqs, p7.fac.maxseqs, p5.fac.maxseqs)])
     p1 <- ggplot(my.splits$dt.idx.top.p57,

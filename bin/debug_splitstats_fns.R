@@ -56,7 +56,11 @@ load_splitstats <- function(split_stats_file, n_top_target,
   
   ## decide if index pairs are in fresh kills (this is slow - could do just on RG.full %in% top.RG)
   cat('num in fresh kills\n')
-  dt.idx[RG.full %in% top.RG, in.fk := num_in_fresh_kills(p7ind, p5ind), .(p7ind, p5ind)]
+  if (use_fk) {
+      dt.idx[RG.full %in% top.RG, in.fk := num_in_fresh_kills(p7ind, p5ind), .(p7ind, p5ind)]
+  } else {
+      dt.idx[RG.full %in% top.RG, in.fk := 0]
+  }
   dt.idx[in.fk > 0 & (RG.cat == 'unknown' | RG.cat == 'unexpected'), RG.cat := 'in_fk']
   
   ## cat('looking for den\n')
