@@ -7,9 +7,16 @@ load_splitstats <- function(split_stats_file, n_top_target,
                             compute.swaps = F) {
   dt.idx <- fread(split_stats_file)
   
+  if (!'p7ind' %in% names(dt.idx)) {
+    dt.idx <- merge(dt.idx, dt.idx[, .N, p7seq][, .(p7seq, p7ind=.I)], by='p7seq')
+  }
+  if (!'p5ind' %in% names(dt.idx)) {
+    dt.idx <- merge(dt.idx, dt.idx[, .N, p5seq][, .(p5seq, p5ind=.I)], by='p5seq')
+  }
+  
   dt.idx <- dt.idx[p7ind != '-' & p5ind != '-']
   dt.idx[p5ind == 'PhiX' & p7ind == 'PhiX', RG := 'PhiX']
-  setnames(dt.idx, '#seqs', 'nseqs')
+  setnames(dt.idx, '#seqs', 'nseqs', skip_absent=TRUE)
   
   dt.idx.full <- dt.idx[, CJ(p7seq, p5seq, unique = T)]
   setnames(dt.idx.full, c('p7seq', 'p5seq'))

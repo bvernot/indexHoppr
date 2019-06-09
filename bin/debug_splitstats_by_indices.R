@@ -1,30 +1,47 @@
-
-
-args = commandArgs(trailingOnly=TRUE)
-
-if (length(args) < 4 || length(args) > 6) {
-    stop('
-
-Usage:
-
-Rscript debug_splitstats_by_indices.R ncores n_sources_of_contam splitsfile file_tag [fresh_kills_json]
-
-You can download a new fresh_kills file with:
-curl "http://bioaps01:5984/default/_all_docs?include_docs=true" > freshkills.json
-
-')
-}
-
-
-
+### options
 dynamic_require <- function(package) {
-    if(eval(parse(text = paste("require(",package,")"))))
-        return(T)
+  if(eval(parse(text = paste("require(",package,")"))))
+    return(T)
+  
+  install.packages(package)
+  return(eval(parse(text=paste("require(",package,")"))))
+}
+suppressPackageStartupMessages(dynamic_require("argparse"))
 
-    install.packages(package)
-    return(eval(parse(text=paste("require(",package,")"))))
+# create parser object
+parser <- ArgumentParser()
+
+parser$add_argument("-v", "--verbose", action="store_true", default=F,
+                    help="Print extra output")
+parser$add_argument("-nc", "--ncores", type='integer', default=1,
+                    help="Number of cores to use.")
+parser$add_argument("-sources", "--sources", type='integer', default=150,
+                    help="Number of potential sources of contamination [~2x the number of expected libraries is a good value].")
+parser$add_argument("-nhits", "--num-hits", type='integer', default=30,
+                    help="Number of potential contaminated libraries to plot")
+parser$add_argument("-splits", "--splits", required=T,
+                    help="Splitsfile")
+parser$add_argument("-libs", "--plot-libs", required=F, default=NULL,
+                    help="One (or more, in the future) library to plot potential contaminations.")
+parser$add_argument("-fk", "--fresh-kills", required=F,
+                    help='Fresh kills json. You can download a new fresh_kills file with: curl "http://bioaps01:5984/default/_all_docs?include_docs=true" > freshkills.json')
+parser$add_argument("-prefix", "--prefix", required=T,
+                    help="Prefix for output files.")
+
+if (interactive()) {
+  args <- parser$parse_args(strsplit('--splits ~/Documents/index_cross_contam/test_splits.txt -libs A17273 -nhits 10 --prefix what -nc 2 --sources 30', split = ' ')[[1]])
+} else {
+  args <- parser$parse_args()
 }
 
+args <- parser$parse_args(strsplit('--splits ~/Documents/index_cross_contam/data/ludovic/splitstats_ludovic_orlando_001.myformat2.txt -nhits 30 --prefix what -nc 2 --sources 150', split = ' ')[[1]])
+
+# Usage:
+# 
+# Rscript debug_splitstats_by_indices.R ncores n_sources_of_contam splitsfile file_tag [fresh_kills_json]
+# 
+# You can download a new fresh_kills file with:
+# curl "http://bioaps01:5984/default/_all_docs?include_docs=true" > freshkills.json
 
 
 
@@ -34,6 +51,8 @@ dynamic_require("ggrepel")
 dynamic_require("colorspace")
 dynamic_require("foreach")
 dynamic_require("doParallel")
+
+setDTthreads(1)
 
 ## library(data.table)
 ## library(tidyverse)
@@ -53,21 +72,26 @@ dynamic_require("doParallel")
 
 #basedir <- '/mnt/expressions/benjamin_vernot/soil_capture_2017/process_sequencing/debug_contamination_mt'
 
-initial.options <- commandArgs(trailingOnly = FALSE)
-file.arg.name <- "--file="
-script.name <- sub(file.arg.name, "", initial.options[grep(file.arg.name, initial.options)])
-basedir <- dirname(script.name)
+if (interactive()) {
+  basedir <- '~/Documents/index_cross_contam/bin/'
+} else {
+    initial.options <- commandArgs(trailingOnly = FALSE)
+  file.arg.name <- "--file="
+  script.name <- sub(file.arg.name, "", initial.options[grep(file.arg.name, initial.options)])
+  basedir <- dirname(script.name)
+}
 cat('script', script.name, '\n')
 cat('basedir', basedir, '\n')
 
 
-ncores <- as.integer(args[1])
-n_sources_of_contam <- as.integer(args[2])
-splitsfile <- args[3]
-file_tag <- args[4]
-fresh_kills_json <- args[5]
+ncores <- args$ncores
+n_sources_of_contam <- args$sources
+n.hits <- args$num_hits
+splitsfile <- args$splits
+file_tag <- args$prefix
+fresh_kills_json <- args$fresh_kills
 use_fk <- T
-if (is.na(fresh_kills_json)) {
+if (is.null(fresh_kills_json)) {
     use_fk <- F
     ## fresh_kills_json <- sprintf('%s/freshkills.json', basedir)
 }
@@ -77,8 +101,8 @@ registerDoParallel(cores=ncores)
 getDoParWorkers()
 
 
-print(args)
-print(length(args))
+# print(args)
+# print(length(args))
 
 
 ## loads functions and dt.fresh_kills - is slow
@@ -119,11 +143,9 @@ names(rg.cat.colors) <- rg.cats
 my.splits <- load_splitstats(splitsfile, n_sources_of_contam, compute.swaps = T)
 
 
-test.ids <- my.splits$test.ids
-target.ids <- my.splits$target.ids
+# test.ids <- my.splits$test.ids
+# target.ids <- my.splits$target.ids
 
-dt.swaps.bak <- my.splits$dt.swaps.bak
-dt.swaps.test <- my.splits$dt.swaps.test
 
 
 
@@ -131,17 +153,21 @@ dt.swaps.test <- my.splits$dt.swaps.test
 # setwd('~/Google Drive/debug_contamination_mt/')
 # pdf(sprintf('test_plots_%s.pdf', file_tag), width=14, height=10)
 
-plot_debug_splits <- function(my.splits) {
+plot_debug_splits <- function(my.splits, n.hits, plot.libs = NULL) {
+  
+  dt.swaps.bak <- data.table(my.splits$dt.swaps.bak)
+  dt.swaps.test <- data.table(my.splits$dt.swaps.test)
+  
   nseqs.hist = 10
   dt.idx.hist_plotting <- my.splits$dt.idx.top[RG.cat != 'expected' & nseqs > nseqs.hist]
-  nseqs.label = dt.idx.hist_plotting[RG.cat == 'in_fk', min(tail(sort(nseqs),5))]
+  nseqs.label = dt.idx.hist_plotting[, min(tail(sort(nseqs),5))]
   if (use_fk) {
-      dt.idx.hist_plotting[nseqs >= nseqs.label, desc := paste0(description_from_fresh_kills(roots_from_fresh_kills(p7ind, p5ind)), '_',
-                                                                dates_in_fresh_kills(my.id = roots_from_fresh_kills(p7ind, p5ind)),
-                                                                collapse = '\n'), .(p7ind, p5ind)]
-      dt.idx.hist_plotting[desc == '_', desc := NA]
+    dt.idx.hist_plotting[nseqs >= nseqs.label, desc := paste0(description_from_fresh_kills(roots_from_fresh_kills(p7ind, p5ind)), '_',
+                                                              dates_in_fresh_kills(my.id = roots_from_fresh_kills(p7ind, p5ind)),
+                                                              collapse = '\n'), .(p7ind, p5ind)]
+    dt.idx.hist_plotting[nseqs >= nseqs.label & desc == '_', desc := paste0(p7seq, '_', p5seq)]
   } else {
-      dt.idx.hist_plotting[, desc := NA]
+    dt.idx.hist_plotting[nseqs >= nseqs.label, desc := paste0(p7seq, '_', p5seq)]
   }
   
   p1 <- ggplot(my.splits$dt.idx.top, aes(x=RG.fac, weight=nseqs/1e5, fill = RG.cat)) +
@@ -162,8 +188,8 @@ plot_debug_splits <- function(my.splits) {
          aes(x=nseqs/1000, fill=RG.cat, weight=nseqs, group=interaction(p5ind, p7ind))) +
     geom_histogram(color=rgb(0,0,0,.4)) + scale_x_log10() + xlab('Number of sequences (x1000, log scale)') +
     ggtitle(sprintf('Unexpected index pairs w/ > %d reads', nseqs.hist)) + ylab('Number of sequences') +
-    geom_vline(data=dt.idx.hist_plotting[!is.na(desc)], aes(color = RG.cat, xintercept = nseqs/1000)) +
-    geom_point(data=dt.idx.hist_plotting[!is.na(desc)], aes(color = RG.cat, y=max(dt.idx.hist_plotting$nseqs))) +
+    # geom_vline(data=dt.idx.hist_plotting[!is.na(desc)], aes(color = RG.cat, xintercept = nseqs/1000)) +
+    # geom_point(data=dt.idx.hist_plotting[!is.na(desc)], aes(color = RG.cat, y=max(dt.idx.hist_plotting$nseqs))) +
     geom_text_repel(aes(label = desc, y=max(dt.idx.hist_plotting$nseqs)), box.padding = 2, force = 10, max.iter = 200000) +
     scale_fill_manual(values = rg.cat.colors) +
     scale_color_manual(values = rg.cat.colors)
@@ -193,6 +219,7 @@ plot_debug_splits <- function(my.splits) {
   
   dt.swaps.test[, min.nseqs := min(id1.nseqs, id2.nseqs), .(id1.nseqs, id2.nseqs)]
   dt.swaps.bak[, min.nseqs := min(id1.nseqs, id2.nseqs), .(id1.nseqs, id2.nseqs)]
+  
   dt.swaps.hits <- dt.swaps.test[x-y > 5][order(x-y,decreasing = T)]
   
   
@@ -228,8 +255,8 @@ plot_debug_splits <- function(my.splits) {
   print(p1)
 
   print(dt.swaps.test)
-  p1 <- ggplot(dt.swaps.test[, y0, .(score=round(x-y))][score > 4], aes(x=y0)) + geom_histogram() + facet_wrap(~score, scales = 'free_y') + xlab('log(corner1/corner2) [facets are rounded scores]')
-  print(p1)
+  # p1 <- ggplot(dt.swaps.test[, y0, .(score=round(x-y))][score > 4], aes(x=y0)) + geom_histogram() + facet_wrap(~score, scales = 'free_y') + xlab('log(corner1/corner2) [facets are rounded scores]')
+  # print(p1)
 
   qqplot(dt.swaps.bak[, x-y],
          dt.swaps.test[, x-y],
@@ -237,14 +264,19 @@ plot_debug_splits <- function(my.splits) {
          ylab = 'Test score distribution')
   abline(b = 1, a=0)
   
-  
+  if (!is.null(plot.libs)) {
+    dt.swaps.hits.plot <- dt.swaps.test[my.id1 %like% plot.libs | my.id2 %like% plot.libs][order(x-y,decreasing = T)]
+    dt.swaps.hits.plot <- head(dt.swaps.hits.plot, n.hits)
+  } else {
+    dt.swaps.hits.plot <- head(dt.swaps.test[order(x-y,decreasing = T)], n.hits)
+  }
   my.swap <- 1
-  for (my.swap in head(dt.swaps.hits[, .I],30)) {
-    rg.square <- dt.swaps.hits[my.swap, c(my.id1,my.id2,x1.rg,x2.rg)]
-    my.id1 <- dt.swaps.hits[my.swap, my.id1]
-    my.id2 <- dt.swaps.hits[my.swap, my.id2]
+  for (my.swap in dt.swaps.hits.plot[, .I]) {
+    rg.square <- dt.swaps.hits.plot[my.swap, c(my.id1,my.id2,x1.rg,x2.rg)]
+    my.id1 <- dt.swaps.hits.plot[my.swap, my.id1]
+    my.id2 <- dt.swaps.hits.plot[my.swap, my.id2]
     my.id.subtitle <- 
-      dt.swaps.hits[my.swap, sprintf('y-x: %0.2g; nseqs: %d and %d; corners: %d and %d', 
+      dt.swaps.hits.plot[my.swap, sprintf('y-x: %0.2f; nseqs: %d and %d; corners: %d and %d', 
                                      x-y, id1.nseqs, id2.nseqs, x1.nseqs, x2.nseqs)]
     dt.id.label <- my.splits$dt.idx[RG.full == my.id1 | RG.full == my.id2]
     
@@ -278,7 +310,7 @@ plot_debug_splits <- function(my.splits) {
 
 
 pdf(sprintf('test_plots_%s.pdf', file_tag), width=14, height=10)
-plot_debug_splits(my.splits)
+plot_debug_splits(my.splits, n.hits, plot.libs = args$plot_libs)
 dev.off()
 
 pdf(sprintf('test_plots_%s_small.pdf', file_tag), width=7, height=5)
