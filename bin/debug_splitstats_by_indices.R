@@ -30,11 +30,11 @@ parser$add_argument("-prefix", "--prefix", required=T,
 
 if (interactive()) {
   args <- parser$parse_args(strsplit('--splits ~/Documents/index_cross_contam/test_splits.txt -libs A17273 -nhits 10 --prefix what -nc 2 --sources 30', split = ' ')[[1]])
+  args <- parser$parse_args(strsplit('--splits ~/Documents/index_cross_contam/data/ludovic/splitstats_ludovic_orlando_001.myformat2.txt -nhits 30 --prefix what -nc 2 --sources 150', split = ' ')[[1]])
 } else {
   args <- parser$parse_args()
 }
 
-args <- parser$parse_args(strsplit('--splits ~/Documents/index_cross_contam/data/ludovic/splitstats_ludovic_orlando_001.myformat2.txt -nhits 30 --prefix what -nc 2 --sources 150', split = ' ')[[1]])
 
 # Usage:
 # 
