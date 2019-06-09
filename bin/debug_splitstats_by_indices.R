@@ -314,7 +314,7 @@ plot_debug_splits(my.splits, n.hits, plot.libs = args$plot_libs)
 dev.off()
 
 pdf(sprintf('test_plots_%s_small.pdf', file_tag), width=7, height=5)
-plot_debug_splits(my.splits)
+plot_debug_splits(my.splits, n.hits, plot.libs = args$plot_libs)
 dev.off()
 
 
