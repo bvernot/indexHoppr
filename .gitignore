@@ -2,3 +2,4 @@
 *.txt
 *~
 .Rproj.user
+.Rhistory
