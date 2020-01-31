@@ -209,6 +209,10 @@ run_compute_swaps <- function(my.splits, limit_search_libs = NULL) {
 
   dt.swaps.null <- compute_swaps(my.splits, test.ids, contam.ids, rand_contam_ids = length(contam.ids))
   dt.swaps.test <- compute_swaps(my.splits, test.ids, contam.ids)
+
+  x.p <- sapply(dt.swaps.test[, test.stat], function(test.x) dt.swaps.null[, (sum(test.x <= test.stat)+1) / (.N+1)])
+  dt.swaps.test[, empirical.p := x.p]
+
   my.splits$dt.swaps.test <- dt.swaps.test
   my.splits$dt.swaps.null <- dt.swaps.null
   my.splits$test.ids <- test.ids
@@ -665,13 +669,8 @@ plot_debug_splits <- function(my.splits, n.hits, plot.libs = NULL, dt.fresh_kill
   plot_qq_null_and_test(dt.swaps.test, dt.swaps.null, test.stat.thresh = 5)
   plot_qq_null_and_test(dt.swaps.test, dt.swaps.null, plot.libs, test.stat.thresh = 5)
 
-  test.x = dt.swaps.test[, max(test.stat)]
-  dt.swaps.null[, (sum(test.x <= test.stat)+1) / (.N+1)]
+  hist(dt.swaps.test$empirical.p, col='black', breaks = seq(0,1,.01), main = 'p-value histogram')
 
-  x.p <- sapply(dt.swaps.test[, test.stat], function(test.x) dt.swaps.null[, (sum(test.x <= test.stat)+1) / (.N+1)])
-  hist(x.p, col='black', breaks = seq(0,1,.01))
-
-  dt.swaps.test
 
   if (!is.null(plot.libs)) {
     dt.swaps.hits.plot <- dt.swaps.test[my.id1 %like% plot.libs | my.id2 %like% plot.libs][order(test.stat,decreasing = T)]
@@ -696,6 +695,8 @@ plot_debug_splits <- function(my.splits, n.hits, plot.libs = NULL, dt.fresh_kill
   }
 
 }
+
+
 
 
 

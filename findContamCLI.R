@@ -32,16 +32,16 @@ parser$add_argument("-libs", "--plot-libs", required=F, default=NULL,
                     help="One (or more, in the future) library to plot potential contaminations.")
 parser$add_argument("-fk", "--fresh-kills", required=F,
                     help='Fresh kills json. You can download a new fresh_kills file with: curl "http://bioaps01:5984/default/_all_docs?include_docs=true" > freshkills.json')
-parser$add_argument("-prefix", "--prefix", required=T,
-                    help="Prefix for output files.")
+parser$add_argument("-table", "--table", required=F, help="Name of output table. If not provided, no table is saved.")
+parser$add_argument("-plots", "--plots", required=F, help="Name of output plots. If not provided, no plots are saved.")
 
 if (interactive()) {
-  args <- parser$parse_args(strsplit('--splits ~/GoogleDrive/debug_contamination_mt/splittingstats_190211_M06210_B24406_MTcapHuman -libs A17273 -nlibs 10 --prefix what -nc 2 --sources 30', split = ' ')[[1]])
-  args <- parser$parse_args(strsplit('--splits ~/Documents/index_cross_contam/data/ludovic/splitstats_ludovic_orlando_001.myformat2.txt -nlibs 30 --prefix what -nc 2 --sources 150 --local', split = ' ')[[1]])
-  args <- parser$parse_args(strsplit('--splits ~/GoogleDrive/debug_contamination_mt/splittingstats_190211_M06210_B24406_MTcapHuman.txt -nlibs 10 --prefix what -nc 2 --sources 5 --local', split = ' ')[[1]])
-  args <- parser$parse_args(strsplit('--splits ~/GoogleDrive/debug_contamination_mt/splittingstats.190925_D00829_0282.lane2_B31560_MTcapHuman.txt -nlibs 50 --prefix what -nc 10 --sources 200 --local', split = ' ')[[1]])
-  args <- parser$parse_args(strsplit('--splits ~/GoogleDrive/debug_contamination_mt/splittingstats.190925_D00829_0282.lane2_B31560_MTcapHuman.txt -nlibs 5 --prefix what -nc 10 --sources 200 --local -fk ~/Downloads/freshkills_200123.json', split = ' ')[[1]])
-  args <- parser$parse_args(strsplit('--splits ~/Downloads/180817_B16399_MTcapAllmam_splittingstats.txt -nlibs 20 -lib A13792 --prefix what -nc 10 --sources 200 --local -fk ~/Downloads/freshkills_200123.json', split = ' ')[[1]])
+  args <- parser$parse_args(strsplit('--splits ~/GoogleDrive/debug_contamination_mt/splittingstats_190211_M06210_B24406_MTcapHuman -libs A17273 -nlibs 10 --plots test_plots_whatwhat.pdf --table test_table_whatwhat.pdf -nc 2 --sources 30', split = ' ')[[1]])
+  args <- parser$parse_args(strsplit('--splits ~/Documents/index_cross_contam/data/ludovic/splitstats_ludovic_orlando_001.myformat2.txt -nlibs 30 --plots test_plots_whatwhat.pdf --table test_table_whatwhat.pdf -nc 2 --sources 150 --local', split = ' ')[[1]])
+  args <- parser$parse_args(strsplit('--splits ~/GoogleDrive/debug_contamination_mt/splittingstats_190211_M06210_B24406_MTcapHuman.txt -nlibs 10 --plots test_plots_whatwhat.pdf --table test_table_whatwhat.pdf -nc 2 --sources 5 --local', split = ' ')[[1]])
+  args <- parser$parse_args(strsplit('--splits ~/GoogleDrive/debug_contamination_mt/splittingstats.190925_D00829_0282.lane2_B31560_MTcapHuman.txt -nlibs 50 --plots test_plots_whatwhat.pdf --table test_table_whatwhat.pdf -nc 10 --sources 200 --local', split = ' ')[[1]])
+  args <- parser$parse_args(strsplit('--splits ~/GoogleDrive/debug_contamination_mt/splittingstats.190925_D00829_0282.lane2_B31560_MTcapHuman.txt -nlibs 5 --plots test_plots_whatwhat.pdf --table test_table_whatwhat.pdf -nc 10 --sources 200 --local -fk ~/Downloads/freshkills_200123.json', split = ' ')[[1]])
+  args <- parser$parse_args(strsplit('--splits ~/Downloads/180817_B16399_MTcapAllmam_splittingstats.txt -nlibs 20 -lib A13792 --plots test_plots_whatwhat.pdf --table test_table_whatwhat.pdf -nc 10 --sources 200 --local -fk ~/Downloads/freshkills_200123.json', split = ' ')[[1]])
 } else {
   # cat('hey\n')
   args <- parser$parse_args()
@@ -133,6 +133,8 @@ getDoParWorkers()
 # my.splits <- splits.mt.22401
 # my.splits <- splits.shotgun
 
+hey
+
 dt.idx <- fread(args$splits)
 my.splits <- load_splitstats(dt.idx = dt.idx, n_contam_sources = args$sources, limit_search_libs = args$num_libs, compute.swaps = T, dt.fresh_kills = dt.fresh_kills)
 my.splits <- run_compute_swaps(my.splits)
@@ -142,6 +144,12 @@ my.splits <- run_compute_swaps(my.splits)
 
 
 file_tag <- 'whatwhat'
+
+
+
+table_file <- sprintf('test_table_%s.tsv', file_tag)
+cat('\n\nsaving results table:', table_file, '\n')
+fwrite(dt.swaps.test, table_file, sep = '\t')
 
 plot_file <- sprintf('test_plots_%s.pdf', file_tag)
 cat('\n\nsaving plot:', plot_file, '\n')
