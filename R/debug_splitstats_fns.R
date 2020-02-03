@@ -500,6 +500,11 @@ plot_xy_null_and_test <- function(dt.swaps.test, dt.swaps.null, y.abs = T, test.
     p1 <- ggplot(dt.swaps.test, aes(x=x, y=y0))
   }
 
+    if (nrow(dt.swaps.null) > 20000) {
+        cat('Downsampling background points to avoid gigantic pdf:', nrow(dt.swaps.null), '\n')
+        dt.swaps.null <- dt.swaps.null[sample(.N, 20000)]
+    }
+
   p1 <- p1 +
     geom_point(data=dt.swaps.null, color='red', alpha=.2, size=3) +
     geom_point(alpha=.2, color='black') +

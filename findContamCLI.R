@@ -77,7 +77,27 @@ if (args$local) {
   # devtools::install()
   devtools::load_all()
 } else {
-  library(indexHoppr)
+
+    ## x = 'indexHoppr'
+    ## x = 'index_cross_contam'
+    ## if (!require(x,character.only = TRUE))
+    ## {
+    ##                                     # install.packages(x,dep=TRUE)
+    ##     install_github('bvernot/index_cross_contam')
+    ##     if(!require(x,character.only = TRUE)) stop("Package not found")
+    ## }
+
+    tryCatch({
+        library(indexHoppr)
+    },
+    error = function(err) {
+        cat('\n\n')
+        cat('You must first install indexHoppr. Start R, and run:\n')
+        cat('library(devtools)\ninstall_github("bvernot/index_cross_contam")\n')
+        cat('\n\n')
+        if (!interactive()) q()
+        # stop(err)
+    })
 }
 library(data.table)
 setDTthreads(1)
