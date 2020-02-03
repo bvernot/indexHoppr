@@ -192,19 +192,20 @@ file_tag <- 'whatwhat'
 if (!is.null(args$table)) {
     ##table_file <- sprintf('test_table_%s.tsv', file_tag)
     full.filename = paste0(args$table, '.full.txt')
-    cat('\n\nsaving full results table:', args$table, '\n')
-    fwrite(my.splits$dt.swaps.test, args$table, sep = '\t')
+    cat('\n\nsaving full results table:', full.filename, '\n')
+    fwrite(my.splits$dt.swaps.test, full.filename, sep = '\t')
 
 
     # summary.filename = paste0(args$table, '.summary.txt')
     summary.filename = args$table
     cat('\n\nsaving summary results table:', summary.filename, '\n')
-    x.test = rbind(my.splits$dt.swaps.test[, .(test.stat, empirical.p, empirical.p.bonf, empirical.q, lib = id1.RG)],
-                   my.splits$dt.swaps.test[, .(test.stat, empirical.p, empirical.p.bonf, empirical.q, lib = id2.RG)])
+    x.test = rbind(my.splits$dt.swaps.test[, .(test.stat, empirical.p, empirical.p.bonf, empirical.q,empirical.p.flag, lib = id1.RG)],
+                   my.splits$dt.swaps.test[, .(test.stat, empirical.p, empirical.p.bonf, empirical.q, empirical.p.flag, lib = id2.RG)])
     x.test.summary = x.test[, .(test.stat = max(test.stat),
                                 empirical.p = min(empirical.p),
                                 empirical.p.bonf = min(empirical.p.bonf),
-                                empirical.q = min(empirical.q)), lib]
+                                empirical.q = min(empirical.q),
+                                empirical.p.flag = max(empirical.p.flag)), lib]
     fwrite(x.test.summary, summary.filename, sep = '\t')
 }
 

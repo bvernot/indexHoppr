@@ -241,6 +241,8 @@ compute_swaps_og <- function (my.splits, test_rg, contam.ids, rand_contam_ids = 
       cat(sprintf('Randomly sampling %d from all [%d] RG to select sources of contamination\n', rand_contam_ids,
                   my.splits$dt.idx.top.p57[nseqs > 0 & p5seq %in% contam.p5 & p7seq %in% contam.p7 & !(RG.full %in% contam.ids), .N]))
 
+  cat('|', paste0(rep('-', length(test_rg)), collapse = ''), '|\n ')
+  
   idx = 0
   ## first cycle through all of the potentially contaminated libraries (the libraries of interest, e.g. test libraries)
   dt.swaps <- foreach(my.id1 = test_rg, .combine = rbind) %dopar% {
