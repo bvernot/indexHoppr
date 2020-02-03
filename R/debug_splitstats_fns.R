@@ -211,9 +211,12 @@ run_compute_swaps <- function(my.splits, random_contam_factor = 10) {
   dt.swaps.test <- compute_swaps(my.splits, test.ids, contam.ids)
 
   x.p <- sapply(dt.swaps.test[, test.stat], function(test.x) dt.swaps.null[, (sum(test.x <= test.stat)+1) / (.N+1)])
+  x.s <- sapply(dt.swaps.test[, test.stat], function(test.x) dt.swaps.null[, sum(test.x <= test.stat)])
   dt.swaps.test[, empirical.p := x.p]
   dt.swaps.test[, empirical.p.bonf := pmin(x.p * .N, 1)]
   dt.swaps.test[, empirical.q := qvalue(empirical.p)$qvalues]
+  dt.swaps.test[x.s == 0, empirical.p.flag := 'P_ISSUE_USE_RCF_FLAG']
+  dt.swaps.test[x.s > 0, empirical.p.flag := '.']
     
 
   my.splits$dt.swaps.test <- dt.swaps.test
