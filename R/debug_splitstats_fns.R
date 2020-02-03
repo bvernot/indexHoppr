@@ -37,6 +37,20 @@ load_splitstats <- function(split_stats_file = NULL, dt.idx = NULL,
 
   ## ISSUE : should I check to make sure that the indices are numeric/strings, and the seqs are characters?
 
+  ######
+  ## clean up the RG a bit - probably only works w/ MPI splitstats
+  ## this also helps us to get the number of expected libraries
+  dt.idx[, RG.cat := RG]
+  dt.idx[RG == 'unexpected', RG := 'unknown']
+  dt.idx[RG != 'PhiX' & (p7ind %like% 'Phi' | p5ind %like% 'Phi'), RG := 'unex_PhiX']
+  dt.idx[RG != 'unknown' & RG != 'unexpected' & RG != 'PhiX' & RG != 'unex_PhiX', RG.cat := 'expected']
+  dt.idx[p5ind == 'PhiX' & p7ind == 'PhiX', RG := 'PhiX']
+  dt.idx[p5ind == 'PhiX' & p7ind == 'PhiX', RG.cat := 'PhiX']
+  cat('Found N expected libraries:', dt.idx[RG.cat == 'expected', .N], '\n')
+
+  ######
+  ## if we don't specify the number of contaminants, use 2x the number of expected libraries
+  if (is.null(n_contam_sources)) n_contam_sources <- 2 * dt.idx[RG.cat == 'expected', .N]
 
   ######
   ## filter down to just p5/p7 that are present in the top X rg
@@ -57,7 +71,7 @@ load_splitstats <- function(split_stats_file = NULL, dt.idx = NULL,
   setnames(dt.idx.full, c('p7seq', 'p5seq'))
   dt.idx.full <- merge(dt.idx.full, unique(dt.idx[, .(p7seq, p7ind)]), by='p7seq')
   dt.idx.full <- merge(dt.idx.full, unique(dt.idx[, .(p5seq, p5ind)]), by='p5seq')
-  dt.idx.full <- merge(dt.idx.full, dt.idx[, .(p7seq, p5seq, RG, nseqs, top.rg)], by=c('p7seq', 'p5seq'), all=T)
+  dt.idx.full <- merge(dt.idx.full, dt.idx[, .(p7seq, p5seq, RG, RG.cat, nseqs, top.rg)], by=c('p7seq', 'p5seq'), all=T)
   dt.idx.full[is.na(top.rg), top.rg := F]
   dt.idx.full[is.na(nseqs), nseqs := 0]
   dt.idx.full[is.na(RG), RG := 'unknown']
@@ -80,14 +94,6 @@ load_splitstats <- function(split_stats_file = NULL, dt.idx = NULL,
   ## indices (AAAAA and AAAAT), then they will both have the RG.full 'unknown.-.50'
   dt.idx[, RG.full := paste(RG, p7ind, p5ind, sep = '.')]
   dt.idx[, RG.full.fac := factor(RG.full, levels = RG.full)]
-  dt.idx[, RG.cat := RG]
-
-  ## just clean up the RG a bit - probably only works w/ MPI splitstats
-  dt.idx[RG == 'unexpected', RG := 'unknown']
-  dt.idx[RG != 'PhiX' & (p7ind %like% 'Phi' | p5ind %like% 'Phi'), RG := 'unex_PhiX']
-  dt.idx[RG != 'unknown' & RG != 'unexpected' & RG != 'PhiX' & RG != 'unex_PhiX', RG.cat := 'expected']
-  dt.idx[p5ind == 'PhiX' & p7ind == 'PhiX', RG := 'PhiX']
-  dt.idx[p5ind == 'PhiX' & p7ind == 'PhiX', RG.cat := 'PhiX']
 
 
   ### ISSUE : NOT REALLY CORRECT - should look for contam in all "expected" libs?
@@ -241,7 +247,7 @@ compute_swaps_og <- function (my.splits, test_rg, contam.ids, rand_contam_ids = 
       cat(sprintf('Randomly sampling %d from all [%d] RG to select sources of contamination\n', rand_contam_ids,
                   my.splits$dt.idx.top.p57[nseqs > 0 & p5seq %in% contam.p5 & p7seq %in% contam.p7 & !(RG.full %in% contam.ids), .N]))
 
-  cat('|', paste0(rep('-', length(test_rg)), collapse = ''), '|\n ')
+  cat('|', paste0(rep('-', length(test_rg)), collapse = ''), '|\n  ')
   
   idx = 0
   ## first cycle through all of the potentially contaminated libraries (the libraries of interest, e.g. test libraries)
@@ -261,7 +267,7 @@ compute_swaps_og <- function (my.splits, test_rg, contam.ids, rand_contam_ids = 
                                         # contam.ids <- my.splits$dt.idx.top.p57[nseqs > 0 & !(RG.full %in% contam.ids), sample(RG.full,rand_contam_ids)]
         ## sample random_contam_factor times more random contamination sources than real contamination sources, to help with p-values
       contam.ids <- my.splits$dt.idx.top.p57[nseqs > 0 & p5seq %in% contam.p5 & p7seq %in% contam.p7 & !(RG.full %in% contam.ids),
-                                             sample(RG.full, rand_contam_ids)]
+                                             sample(RG.full, min(.N, rand_contam_ids))]
     }
 
     foreach(my.id2 = contam.ids[!contam.ids %in% rm_rg], .combine = rbind) %do% {
@@ -549,11 +555,12 @@ plot_qq_null_and_test <- function(dt.swaps.test, dt.swaps.null, plot.libs = NULL
 
   if (is.null(plot.libs)) {
     p1 <- p1 + geom_point(alpha=.5)
-    p1 <- p1 + geom_text_repel(data=dt.swaps.test.q[test.stat > test.stat.thresh], aes(label=sprintf('%s-%s', id1.RG, id2.RG)), color='red')
+    p1 <- p1 + geom_text_repel(data=tail(dt.swaps.test.q[test.stat > test.stat.thresh], 10), aes(label=sprintf('%s-%s', id1.RG, id2.RG)), color='red')
   } else {
+      dt.swaps.test.q.lab <- tail(dt.swaps.test.q[id1.RG %in% plot.libs | id2.RG %in% plot.libs][test.stat > test.stat.thresh], 10)
     p1 <- p1 + geom_point(aes(color = (id1.RG %in% plot.libs | id2.RG %in% plot.libs)), alpha=.5) + scale_color_manual('Lib of interest', values = c('black', 'red'))
     p1 <- p1 + geom_point(data=dt.swaps.test.q[id1.RG %in% plot.libs | id2.RG %in% plot.libs], alpha=.5, color='red')
-    p1 <- p1 + geom_text_repel(data=dt.swaps.test.q[id1.RG %in% plot.libs | id2.RG %in% plot.libs][test.stat > test.stat.thresh],
+    p1 <- p1 + geom_text_repel(data=dt.swaps.test.q.lab,
                                aes(label=sprintf('%s-%s', id1.RG, id2.RG)), color='red')
   }
 

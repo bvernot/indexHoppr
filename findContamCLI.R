@@ -32,12 +32,12 @@ parser$add_argument("-local", "--local", action="store_true", default=F,
                     help="Load the library locally, mostly for testing new features.")
 parser$add_argument("-nc", "--ncores", type='integer', default=1,
                     help="Number of cores to use.")
-parser$add_argument("-sources", "--sources", type='integer', default=150,
-                    help="Number of potential sources of contamination [~2x the number of expected libraries is a good value].")
+parser$add_argument("-sources", "--sources", type='integer', default=NULL,
+                    help="Number of potential sources of contamination [~2x the number of expected libraries is often a good value, and the default].")
 parser$add_argument("-nlibs", "--num-libs", type='integer', default=NULL,
                     help="Number of libraries to search for contamination.")
 parser$add_argument("-rcf", "--random-contam-factor", type='integer', default=5,
-                    help="Number of contamination libraries to consider (as factor of -sources). Increase this if the smallest p-values are all 1/(number of contamination comparisons).")
+                    help="Number of random contamination libraries to consider (as factor of -sources). Increase this if the smallest p-values are all 1/(number of contamination comparisons) [reported in empirical.p.flag column].")
 parser$add_argument("-num-plot-libs", "--num-plot-libs", type='integer', default=10,
                     help="Number of potential contaminated libraries to plot.")
 parser$add_argument("-splits", "--splits", required=T,
