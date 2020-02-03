@@ -290,6 +290,7 @@ compute_swaps_og <- function (my.splits, test_rg, contam.ids, rand_contam_ids = 
       ## also save both "swap" RG.full, and do the computation including the top X unexpected in_fk RG
     }
   }
+  cat('\n')
   dt.swaps[, x := log((x1.nseqs+x2.nseqs+2)/2)]
   dt.swaps[, y := abs(log((x1.nseqs+1)/(x2.nseqs+1)))]
   dt.swaps[, y0 := log((x1.nseqs+1)/(x2.nseqs+1))]
