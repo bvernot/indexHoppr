@@ -206,6 +206,11 @@ if (!is.null(args$table)) {
                                 empirical.p.bonf = min(empirical.p.bonf),
                                 empirical.q = min(empirical.q),
                                 empirical.p.flag = max(empirical.p.flag)), lib]
+
+    x.test.summary[, description := description_from_fresh_kills(dt.fresh_kills,
+                                                                 my.id = roots_from_fresh_kills(dt.fresh_kills, my.id = lib)),
+                   lib]
+    
     fwrite(x.test.summary, summary.filename, sep = '\t')
 }
 

@@ -213,12 +213,17 @@ run_compute_swaps <- function(my.splits, random_contam_factor = 10) {
   ## this could be changed to get better stats e.g. for pools with a lower number of libraries in them, use a lower number
   ## could also be calculated on the fly?
 
-  dt.swaps.null <- compute_swaps(my.splits, test.ids, contam.ids, rand_contam_ids = random_contam_factor * length(contam.ids))
-  dt.swaps.test <- compute_swaps(my.splits, test.ids, contam.ids)
+    dt.swaps.null <- compute_swaps(my.splits, test.ids, contam.ids, rand_contam_ids = random_contam_factor * length(contam.ids))
+    dt.swaps.test <- compute_swaps(my.splits, test.ids, contam.ids)
+    
+    setorder(dt.swaps.test, -test.stat)
+    setorder(dt.swaps.null, -test.stat)
 
   x.p <- sapply(dt.swaps.test[, test.stat], function(test.x) dt.swaps.null[, (sum(test.x <= test.stat)+1) / (.N+1)])
   x.s <- sapply(dt.swaps.test[, test.stat], function(test.x) dt.swaps.null[, sum(test.x <= test.stat)])
+  dt.swaps.test[, test.stat.rank := .I]
   dt.swaps.test[, empirical.p := x.p]
+  dt.swaps.test[, empirical.n := x.s]
   dt.swaps.test[, empirical.p.bonf := pmin(x.p * .N, 1)]
   dt.swaps.test[, empirical.q := qvalue(empirical.p)$qvalues]
   dt.swaps.test[x.s == 0, empirical.p.flag := 'P_ISSUE_USE_RCF_FLAG']
@@ -339,7 +344,7 @@ plot_all_libs_hist <- function(my.splits, nlibs = NULL) {
 }
 
 add_description <- function(dt.idx.top_unexpected_index_combs, dt.fresh_kills = NULL) {
-  cat('adding desc:', nrow(dt.idx.top_unexpected_index_combs), '--', nrow(dt.fresh_kills), '\n')
+  # cat('adding desc:', nrow(dt.idx.top_unexpected_index_combs), '--', nrow(dt.fresh_kills), '\n')
   if (!is.null(dt.fresh_kills)) {
     dt.idx.top_unexpected_index_combs[, desc := paste0(libid_from_fresh_kills(dt.fresh_kills, roots_from_fresh_kills(dt.fresh_kills, p7ind, p5ind)), '__',
                                                        description_from_fresh_kills(dt.fresh_kills, my.id = roots_from_fresh_kills(dt.fresh_kills, p7ind, p5ind)), '__',
@@ -588,8 +593,10 @@ plot_putative_contam_squares_heatmap <- function(my.splits, dt.swaps.hits.plot, 
                                         test.stat, id1.nseqs, id2.nseqs, x1.nseqs, x2.nseqs)]
   if ('empirical.p' %in% colnames(dt.swaps.hits.plot)) {
       my.id.subtitle <- paste0(my.id.subtitle,
-                               dt.swaps.hits.plot[my.swap, sprintf('p: %0.4f;  p-bonf: %0.4f;  qval: %0.4f',
-                                                                   empirical.p, empirical.p.bonf, empirical.q)])
+                               dt.swaps.hits.plot[my.swap, sprintf('p: %0.4f;  p-bonf: %0.4f;  qval: %0.4f;  flag: %s, %d/%d;  rank: %d/%d',
+                                                                   empirical.p, empirical.p.bonf, empirical.q,
+                                                                   empirical.p.flag, empirical.n, my.splits$dt.swaps.null[, .N],
+                                                                   test.stat.rank, my.splits$dt.swaps.test[, .N])])
   }
   # empirical.p empirical.p.bonf empirical.q
   dt.id.label <- my.splits$dt.idx[RG.full == my.id1 | RG.full == my.id2]

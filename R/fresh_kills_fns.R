@@ -120,7 +120,8 @@ libid_from_fresh_kills <- function(dt.fresh_kills.rows, my.roots) {
 
 
 description_from_fresh_kills <- function(dt.fresh_kills.rows, my.id) {
-  dt.fresh_kills.rows[id %in% my.id, doc.description]
+    #if (!my.id %in% dt.fresh_kills.rows$id) return(paste0('unknown_id: ', my.id))
+    dt.fresh_kills.rows[id %in% my.id, doc.description]
 }
 # description_from_fresh_kills(roots_from_fresh_kills(my.id='N2995'))
 # description_from_fresh_kills(roots_from_fresh_kills(434, 119))
