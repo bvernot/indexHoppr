@@ -97,7 +97,7 @@ load_splitstats <- function(split_stats_file = NULL, dt.idx = NULL,
   # target.RG.full <- dt.idx[, RG.full[.I < n_contam_sources]]
   # target.RG.full <- dt.idx[, head(RG.full, as.integer( 1.5 * (n_contam_sources + n_target_libs)) )]
   target.RG.full <- dt.idx[top.rg == T, RG.full]
-  print(dt.idx[top.rg == T, .(RG.full, nseqs)])
+  #print(dt.idx[top.rg == T, .(RG.full, nseqs)])
   # RG.levels <- dt.idx[, .(RG.nseqs = sum(nseqs)), .(RG.full)]
   # setkey(RG.levels, RG.nseqs)
   # RG.levels[, RG.fac := factor(RG.full, levels = rev(RG.full))]
@@ -129,14 +129,14 @@ load_splitstats <- function(split_stats_file = NULL, dt.idx = NULL,
   cat('num in fresh kills\n')
   dt.idx[, in.fk := 0L]
   if (use_fk) {
-    print(head(dt.idx[RG.full %in% target.RG.full, .N, .(p7ind, p5ind)]))
+    # print(head(dt.idx[RG.full %in% target.RG.full, .N, .(p7ind, p5ind)]))
     dt.idx[RG.full %in% target.RG.full, in.fk := num_in_fresh_kills(dt.fresh_kills, p7ind, p5ind), .(p7ind, p5ind)]
   } else {
       dt.idx[RG.full %in% target.RG.full, in.fk := 0L]
   }
   dt.idx[in.fk > 0 & (RG.cat == 'unknown' | RG.cat == 'unexpected'), RG.cat := 'in_fk']
 
-  print(head(dt.idx))
+  # print(head(dt.idx))
 
   ## cat('looking for den\n')
   ## dt.idx[RG.full %in% top.RG, fk_den := sum(description_from_fresh_kills(roots_from_fresh_kills(p7ind, p5ind)) %like% 'enisova'), .(p7ind, p5ind)]
@@ -193,7 +193,7 @@ load_splitstats <- function(split_stats_file = NULL, dt.idx = NULL,
   return(ret)
 }
 
-run_compute_swaps <- function(my.splits, limit_search_libs = NULL) {
+run_compute_swaps <- function(my.splits, random_contam_factor = 10) {
 
   ## look for cross-contamination only in the expected libraries
   test.ids <- my.splits$test.ids
@@ -207,11 +207,14 @@ run_compute_swaps <- function(my.splits, limit_search_libs = NULL) {
   ## this could be changed to get better stats e.g. for pools with a lower number of libraries in them, use a lower number
   ## could also be calculated on the fly?
 
-  dt.swaps.null <- compute_swaps(my.splits, test.ids, contam.ids, rand_contam_ids = length(contam.ids))
+  dt.swaps.null <- compute_swaps(my.splits, test.ids, contam.ids, rand_contam_ids = random_contam_factor * length(contam.ids))
   dt.swaps.test <- compute_swaps(my.splits, test.ids, contam.ids)
 
   x.p <- sapply(dt.swaps.test[, test.stat], function(test.x) dt.swaps.null[, (sum(test.x <= test.stat)+1) / (.N+1)])
   dt.swaps.test[, empirical.p := x.p]
+  dt.swaps.test[, empirical.p.bonf := pmin(x.p * .N, 1)]
+  dt.swaps.test[, empirical.q := qvalue(empirical.p)$qvalues]
+    
 
   my.splits$dt.swaps.test <- dt.swaps.test
   my.splits$dt.swaps.null <- dt.swaps.null
@@ -232,13 +235,15 @@ compute_swaps_og <- function (my.splits, test_rg, contam.ids, rand_contam_ids = 
   og.contam.ids <- contam.ids
 
   if (!is.null(rand_contam_ids))
-    cat(sprintf('Randomly sampling %d from all RG to select sources of contamination\n', rand_contam_ids))
+      cat(sprintf('Randomly sampling %d from all [%d] RG to select sources of contamination\n', rand_contam_ids,
+                  my.splits$dt.idx.top.p57[nseqs > 0 & p5seq %in% contam.p5 & p7seq %in% contam.p7 & !(RG.full %in% contam.ids), .N]))
 
   idx = 0
   ## first cycle through all of the potentially contaminated libraries (the libraries of interest, e.g. test libraries)
   dt.swaps <- foreach(my.id1 = test_rg, .combine = rbind) %dopar% {
     idx = idx + 1
-    cat('\n',my.id1, ':', idx, '/', length(test_rg))
+    #cat('\n',my.id1, ':', idx, '/', length(test_rg))
+    cat('.')
 
     # often the test libraries are also potential sources of contamination. we don't want to compute the full symmetric comparison
     # make sure that if there are rg in both sets, we don't do the test both ways
@@ -248,15 +253,16 @@ compute_swaps_og <- function (my.splits, test_rg, contam.ids, rand_contam_ids = 
     ## should we restrict to only sampling from.. the indices present in the test targets?
     if (!is.null(rand_contam_ids)) {
       # ggplot(my.splits$dt.idx.top.p57, aes(x=p7.fac.maxseqs, y=p5.fac.maxseqs, fill=log(nseqs))) + geom_tile()
-      # contam.ids <- my.splits$dt.idx.top.p57[nseqs > 0 & !(RG.full %in% contam.ids), sample(RG.full,rand_contam_ids)]
+                                        # contam.ids <- my.splits$dt.idx.top.p57[nseqs > 0 & !(RG.full %in% contam.ids), sample(RG.full,rand_contam_ids)]
+        ## sample random_contam_factor times more random contamination sources than real contamination sources, to help with p-values
       contam.ids <- my.splits$dt.idx.top.p57[nseqs > 0 & p5seq %in% contam.p5 & p7seq %in% contam.p7 & !(RG.full %in% contam.ids),
-                                             sample(RG.full,2*rand_contam_ids)]
+                                             sample(RG.full, rand_contam_ids)]
     }
 
     foreach(my.id2 = contam.ids[!contam.ids %in% rm_rg], .combine = rbind) %do% {
       # cat('\n',my.id1, my.id2, ':', idx, '/', length(test_rg))
       if (my.id1 == my.id2) return(data.table())
-      cat('.')
+      # cat('.')
       my.id1.p5 <- my.splits$dt.idx.top.p57[RG.full == my.id1, p5.fac.maxseqs]
       my.id1.p7 <- my.splits$dt.idx.top.p57[RG.full == my.id1, p7.fac.maxseqs]
       my.id2.p5 <- my.splits$dt.idx.top.p57[RG.full == my.id2, p5.fac.maxseqs]
@@ -427,15 +433,16 @@ plot_simple_heatmap <- function(my.splits, dt.idx.top_unexpected_index_combs = N
 }
 # plot_simple_heatmap(my.splits, dt.idx.top_unexpected_index_combs)
 
-plot_simple_heatmap2 <- function(my.splits, dt.idx.labels = NULL, dt.idx.labels.colors = NULL, my.title = NULL) {
+plot_simple_heatmap2 <- function(my.splits, dt.idx.labels = NULL, dt.idx.labels.colors = NULL, my.title = NULL, my.title.color = 'black') {
 
-  p.tile <- ggplot(my.splits$dt.idx.top.p57,
-                   aes(x=p7.fac.maxseqs, y=p5.fac.maxseqs, fill=log(nseqs))) +
-    geom_tile() + scale_fill_distiller(type='div', palette = 2) +
-    geom_abline(slope=1) +
-    theme(axis.text.x = element_text(angle = 90, vjust = .5)) +
-    ggtitle(my.title) +
-    NULL
+    p.tile <- ggplot(my.splits$dt.idx.top.p57,
+                     aes(x=p7.fac.maxseqs, y=p5.fac.maxseqs, fill=log(nseqs))) +
+        geom_tile() + scale_fill_distiller(type='div', palette = 2) +
+        geom_abline(slope=1) +
+        theme(axis.text.x = element_text(angle = 90, vjust = .5)) +
+        ggtitle(my.title) +
+        theme(plot.title = element_text(color=my.title.color, face="bold")) +
+        NULL
 
   if (!is.null(dt.idx.labels)) {
     if ('category' %in% colnames(dt.idx.labels)) {
@@ -553,13 +560,20 @@ if (F) {
 
 
 
-plot_putative_contam_squares_heatmap <- function(my.splits, dt.swaps.hits.plot, my.swap, dt.fresh_kills = NULL, title.prefix = '') {
+plot_putative_contam_squares_heatmap <- function(my.splits, dt.swaps.hits.plot, my.swap, dt.fresh_kills = NULL, title.prefix = '', title.color = 'black') {
   rg.square <- dt.swaps.hits.plot[my.swap, c(my.id1,my.id2,x1.rg,x2.rg)]
   my.id1 <- dt.swaps.hits.plot[my.swap, my.id1]
   my.id2 <- dt.swaps.hits.plot[my.swap, my.id2]
+  #print(dt.swaps.hits.plot)
   my.id.subtitle <-
-    dt.swaps.hits.plot[my.swap, sprintf('y-x: %0.2f; nseqs: %d and %d; corners: %d and %d',
+    dt.swaps.hits.plot[my.swap, sprintf('y-x: %0.2f; nseqs: %d and %d; corners: %d and %d    ',
                                         test.stat, id1.nseqs, id2.nseqs, x1.nseqs, x2.nseqs)]
+  if ('empirical.p' %in% colnames(dt.swaps.hits.plot)) {
+      my.id.subtitle <- paste0(my.id.subtitle,
+                               dt.swaps.hits.plot[my.swap, sprintf('p: %0.4f;  p-bonf: %0.4f;  qval: %0.4f',
+                                                                   empirical.p, empirical.p.bonf, empirical.q)])
+  }
+  # empirical.p empirical.p.bonf empirical.q
   dt.id.label <- my.splits$dt.idx[RG.full == my.id1 | RG.full == my.id2]
 
   add_description(dt.id.label, dt.fresh_kills)
@@ -578,7 +592,9 @@ plot_putative_contam_squares_heatmap <- function(my.splits, dt.swaps.hits.plot, 
     geom_tile(data=my.splits$dt.idx.top.p57[RG.full %in% rg.square]) +
     geom_text_repel(data=dt.id.label, aes(label = desc), box.padding = 1, point.padding = 1, direction = 'y') +
     ggtitle(sprintf('%sPutative contaminated samples: %s and %s', title.prefix, my.id1, my.id2),
-            subtitle = my.id.subtitle)
+            subtitle = my.id.subtitle) +
+      theme(plot.title = element_text(color=title.color, face="bold")) +
+      NULL
   print(p1)
 }
 
@@ -686,12 +702,12 @@ plot_debug_splits <- function(my.splits, n.hits, plot.libs = NULL, dt.fresh_kill
 
   dt.swaps.hits.plot <- head(dt.swaps.null[order(test.stat,decreasing = T)], n.hits)
   for (my.swap in dt.swaps.hits.plot[, .I]) {
-    plot_putative_contam_squares_heatmap(my.splits, dt.swaps.hits.plot, my.swap, dt.fresh_kills, title.prefix = 'Background (top): ')
+    plot_putative_contam_squares_heatmap(my.splits, dt.swaps.hits.plot, my.swap, dt.fresh_kills, title.prefix = 'Background (top): ', title.color = 'red')
   }
 
   dt.swaps.hits.plot <- tail(dt.swaps.null[order(test.stat,decreasing = T)], n.hits)
   for (my.swap in dt.swaps.hits.plot[, .I]) {
-    plot_putative_contam_squares_heatmap(my.splits, dt.swaps.hits.plot, my.swap, dt.fresh_kills, title.prefix = 'Background (bottom): ')
+    plot_putative_contam_squares_heatmap(my.splits, dt.swaps.hits.plot, my.swap, dt.fresh_kills, title.prefix = 'Background (bottom): ', title.color = 'blue')
   }
 
 }

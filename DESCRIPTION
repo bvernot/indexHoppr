@@ -18,5 +18,6 @@ Depends:
     doParallel,
     argparse,
     devtools,
-    jsonlite
+    jsonlite,
+    qvalue
 # Imports: 

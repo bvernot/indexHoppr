@@ -3,10 +3,22 @@
 # options(error=NULL)
 
 
-## install necessary packages
-list.of.packages <- c("devtools", "argparse")
-new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
-if(length(new.packages)) install.packages(new.packages)
+
+## I removed this code because it is nonstandard and also *really* slow
+if (F) {
+    ## install necessary packages
+    cat('Installing new libraries if necessary (may take a few minutes)\n')
+    list.of.packages <- c("devtools", "argparse")
+    new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+    if(length(new.packages)) install.packages(new.packages)
+
+    if (!requireNamespace("BiocManager", quietly = TRUE))
+        install.packages("BiocManager")
+
+    BiocManager::install("qvalue")
+}
+
+cat('Parsing arguments (may take a few minutes)\n')
 
 library(argparse)
 
@@ -22,8 +34,10 @@ parser$add_argument("-nc", "--ncores", type='integer', default=1,
                     help="Number of cores to use.")
 parser$add_argument("-sources", "--sources", type='integer', default=150,
                     help="Number of potential sources of contamination [~2x the number of expected libraries is a good value].")
-parser$add_argument("-nlibs", "--num-libs", type='integer', default=30,
+parser$add_argument("-nlibs", "--num-libs", type='integer', default=NULL,
                     help="Number of libraries to search for contamination.")
+parser$add_argument("-rcf", "--random-contam-factor", type='integer', default=5,
+                    help="Number of contamination libraries to consider (as factor of -sources). Increase this if the smallest p-values are all 1/(number of contamination comparisons).")
 parser$add_argument("-num-plot-libs", "--num-plot-libs", type='integer', default=10,
                     help="Number of potential contaminated libraries to plot.")
 parser$add_argument("-splits", "--splits", required=T,
@@ -34,6 +48,7 @@ parser$add_argument("-fk", "--fresh-kills", required=F,
                     help='Fresh kills json. You can download a new fresh_kills file with: curl "http://bioaps01:5984/default/_all_docs?include_docs=true" > freshkills.json')
 parser$add_argument("-table", "--table", required=F, help="Name of output table. If not provided, no table is saved.")
 parser$add_argument("-plots", "--plots", required=F, help="Name of output plots. If not provided, no plots are saved.")
+parser$add_argument("-dump-data", "--dump-data", required=F, help="Name of file to save final data, in RDS. If not provided, no RDS is saved.")
 
 if (interactive()) {
   args <- parser$parse_args(strsplit('--splits ~/GoogleDrive/debug_contamination_mt/splittingstats_190211_M06210_B24406_MTcapHuman -libs A17273 -nlibs 10 --plots test_plots_whatwhat.pdf --table test_table_whatwhat.pdf -nc 2 --sources 30', split = ' ')[[1]])
@@ -53,6 +68,8 @@ if (interactive()) {
 #
 # You can download a new fresh_kills file with:
 # curl "http://bioaps01:5984/default/_all_docs?include_docs=true" > freshkills.json
+
+cat('Loading libraries (may take a few minutes)\n')
 
 library(devtools)
 
@@ -95,7 +112,8 @@ if (is.null(args$fresh_kills)) {
   # use_fk <- F
   dt.fresh_kills <- NULL
 } else {
-  # use_fk <- T
+                                        # use_fk <- T
+    cat('Reading fresh kills database (may take a few minutes)\n')
   dt.fresh_kills <- load_fresh_kills(args$fresh_kills)
 }
 
@@ -133,11 +151,15 @@ getDoParWorkers()
 # my.splits <- splits.mt.22401
 # my.splits <- splits.shotgun
 
-hey
+# hey
+
+cat('Reading split stats\n')
 
 dt.idx <- fread(args$splits)
 my.splits <- load_splitstats(dt.idx = dt.idx, n_contam_sources = args$sources, limit_search_libs = args$num_libs, compute.swaps = T, dt.fresh_kills = dt.fresh_kills)
-my.splits <- run_compute_swaps(my.splits)
+
+cat('Computing corners (may take a long time)\n')
+my.splits <- run_compute_swaps(my.splits, random_contam_factor = args$random_contam_factor)
 
 # test.ids <- my.splits$test.ids
 # target.ids <- my.splits$target.ids
@@ -147,16 +169,26 @@ file_tag <- 'whatwhat'
 
 
 
-table_file <- sprintf('test_table_%s.tsv', file_tag)
-cat('\n\nsaving results table:', table_file, '\n')
-fwrite(dt.swaps.test, table_file, sep = '\t')
+if (!is.null(args$table)) {
+    ##table_file <- sprintf('test_table_%s.tsv', file_tag)
+    cat('\n\nsaving results table:', args$table, '\n')
+    fwrite(my.splits$dt.swaps.test, args$table, sep = '\t')
+}
 
-plot_file <- sprintf('test_plots_%s.pdf', file_tag)
-cat('\n\nsaving plot:', plot_file, '\n')
-pdf(plot_file, width=14, height=10)
-plot_debug_splits(my.splits = my.splits, n.hits = args$num_plot_libs, dt.fresh_kills = dt.fresh_kills, plot.libs = args$plot_libs)
-dev.off()
+if (!is.null(args$plots)) {
+    ##plot_file <- sprintf('test_plots_%s.pdf', file_tag)
+    cat('\n\nsaving plot:', args$plots, '\n')
+    pdf(args$plots, width=14, height=10)
+    plot_debug_splits(my.splits = my.splits, n.hits = args$num_plot_libs, dt.fresh_kills = dt.fresh_kills, plot.libs = args$plot_libs)
+    dev.off()
+}
 
+if (!is.null(args$dump_data)) {
+    ##plot_file <- sprintf('test_plots_%s.pdf', file_tag)
+    cat('\n\nsaving RDS:', args$dump_data, '\n')
+    my.splits$args <- args
+    saveRDS(my.splits, args$dump_data)
+}
 # pdf(sprintf('test_plots_%s_small.pdf', file_tag), width=7, height=5)
 # plot_debug_splits(my.splits, args$num_libs, plot.libs = args$plot_libs)
 # dev.off()

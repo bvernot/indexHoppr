@@ -1,7 +1,13 @@
 
 
 load_fresh_kills <- function(fresh_kills_json) {
-  # ```curl 'http://bioaps01:5984/default/_all_docs?include_docs=true' > freshkills.json```
+    ## ```curl 'http://bioaps01:5984/default/_all_docs?include_docs=true' > freshkills.json```
+
+    if (!file.exists(fresh_kills_json)) {
+        cat('Fresh kills file does not exist?', fresh_kills_json, '\n')
+        stop()
+    }
+    
   dt.fresh_kills <- fromJSON(fresh_kills_json, flatten = T)
   # names(dt.fresh_kills)
   dt.fresh_kills.rows <- data.table(dt.fresh_kills$rows)
