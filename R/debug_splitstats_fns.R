@@ -725,12 +725,14 @@ plot_debug_splits <- function(my.splits, n.hits, plot.libs = NULL, dt.fresh_kill
     plot_putative_contam_squares_heatmap(my.splits, dt.swaps.hits.plot, my.swap, dt.fresh_kills)
   }
 
-  dt.swaps.hits.plot <- head(dt.swaps.null[order(test.stat,decreasing = T)], n.hits)
+  # dt.swaps.hits.plot <- head(dt.swaps.null[order(test.stat,decreasing = T)], n.hits)
+  dt.swaps.hits.plot <- head(dt.swaps.null[order(test.stat,decreasing = T)], 5)
   for (my.swap in dt.swaps.hits.plot[, .I]) {
     plot_putative_contam_squares_heatmap(my.splits, dt.swaps.hits.plot, my.swap, dt.fresh_kills, title.prefix = 'Background (top): ', title.color = 'red')
   }
 
-  dt.swaps.hits.plot <- tail(dt.swaps.null[order(test.stat,decreasing = T)], n.hits)
+  #dt.swaps.hits.plot <- tail(dt.swaps.null[order(test.stat,decreasing = T)], n.hits)
+  dt.swaps.hits.plot <- tail(dt.swaps.null[order(test.stat,decreasing = T)], 5)
   for (my.swap in dt.swaps.hits.plot[, .I]) {
     plot_putative_contam_squares_heatmap(my.splits, dt.swaps.hits.plot, my.swap, dt.fresh_kills, title.prefix = 'Background (bottom): ', title.color = 'blue')
   }

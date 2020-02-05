@@ -193,7 +193,7 @@ if (!is.null(args$table)) {
     ##table_file <- sprintf('test_table_%s.tsv', file_tag)
     full.filename = paste0(args$table, '.full.txt')
     cat('\n\nsaving full results table:', full.filename, '\n')
-    fwrite(my.splits$dt.swaps.test, full.filename, sep = '\t')
+    fwrite(setorder(my.splits$dt.swaps.test, -test.stat), full.filename, sep = '\t')
 
 
     # summary.filename = paste0(args$table, '.summary.txt')
@@ -211,7 +211,7 @@ if (!is.null(args$table)) {
                                                                  my.id = roots_from_fresh_kills(dt.fresh_kills, my.id = lib)),
                    lib]
     
-    fwrite(x.test.summary, summary.filename, sep = '\t')
+    fwrite(setorder(x.test.summary, -test.stat), summary.filename, sep = '\t')
 }
 
 if (!is.null(args$plots)) {
