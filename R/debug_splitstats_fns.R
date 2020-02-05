@@ -224,8 +224,16 @@ run_compute_swaps <- function(my.splits, random_contam_factor = 10) {
   dt.swaps.test[, test.stat.rank := .I]
   dt.swaps.test[, empirical.p := x.p]
   dt.swaps.test[, empirical.n := x.s]
-  dt.swaps.test[, empirical.p.bonf := pmin(x.p * .N, 1)]
-  dt.swaps.test[, empirical.q := qvalue(empirical.p)$qvalues]
+    dt.swaps.test[, empirical.p.bonf := pmin(x.p * .N, 1)]
+    q.tmp <- tryCatch(dt.swaps.test[, qvalue(empirical.p)$qvalues],
+                      error=function(cond) {
+                          message(paste("q-value calculation failed. Could be due to low numbers of observations:", dt.swaps.test[, .N]))
+                          ## dt.swaps.test[, rep(NA, .N)]
+                          NA
+                      })
+    
+    ## dt.swaps.test[, empirical.q := qvalue(empirical.p)$qvalues]
+  dt.swaps.test[, empirical.q := q.tmp]
   dt.swaps.test[x.s == 0, empirical.p.flag := 'P_ISSUE_USE_RCF_FLAG']
   dt.swaps.test[x.s > 0, empirical.p.flag := '.']
     
