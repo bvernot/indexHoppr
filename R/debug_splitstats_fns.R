@@ -723,12 +723,19 @@ plot_debug_splits <- function(my.splits, n.hits, plot.libs = NULL, dt.fresh_kill
 
     if (!is.null(plot.libs)) {
         cat('Restricting plot to libs:', plot.libs, '\n')
-        dt.swaps.hits.plot <- dt.swaps.test[my.id1 %in% plot.libs | my.id2 %in% plot.libs][order(test.stat,decreasing = T)]
+        dt.swaps.hits.plot <- dt.swaps.test[id1.RG %in% plot.libs | id2.RG %in% plot.libs][order(test.stat,decreasing = T)]
         dt.swaps.hits.plot <- head(dt.swaps.hits.plot, n.hits)
     } else {
         cat('Plotting top N libs:', n.hits, '\n')
         dt.swaps.hits.plot <- head(dt.swaps.test[order(test.stat,decreasing = T)], n.hits)
     }
+
+    print('debug')
+    print(dt.swaps.test)
+    print(dt.swaps.test[id1.RG %in% plot.libs | id2.RG %in% plot.libs])
+    print(dt.swaps.test[id1.RG %in% plot.libs | id2.RG %in% plot.libs][order(test.stat,decreasing = T)])
+    print(dt.swaps.hits.plot)
+          
 
     my.swap <- 1
 
