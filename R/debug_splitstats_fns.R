@@ -722,7 +722,7 @@ plot_debug_splits <- function(my.splits, n.hits, plot.libs = NULL, dt.fresh_kill
 
 
   if (!is.null(plot.libs)) {
-    dt.swaps.hits.plot <- dt.swaps.test[my.id1 %like% plot.libs | my.id2 %like% plot.libs][order(test.stat,decreasing = T)]
+    dt.swaps.hits.plot <- dt.swaps.test[my.id1 %in% plot.libs | my.id2 %in% plot.libs][order(test.stat,decreasing = T)]
     dt.swaps.hits.plot <- head(dt.swaps.hits.plot, n.hits)
   } else {
     dt.swaps.hits.plot <- head(dt.swaps.test[order(test.stat,decreasing = T)], n.hits)

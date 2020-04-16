@@ -42,7 +42,7 @@ parser$add_argument("-num-plot-libs", "--num-plot-libs", type='integer', default
                     help="Number of potential contaminated libraries to plot.")
 parser$add_argument("-splits", "--splits", required=T,
                     help="Splitsfile")
-parser$add_argument("-libs", "--plot-libs", required=F, default=NULL,
+parser$add_argument("-libs", "--plot-libs", required=F, default=NULL, nargs='+',
                     help="One (or more, in the future) library to plot potential contaminations.")
 parser$add_argument("-fk", "--fresh-kills", required=F,
                     help='Fresh kills json. You can download a new fresh_kills file with: curl "http://bioaps01:5984/default/_all_docs?include_docs=true" > freshkills.json')
@@ -207,9 +207,9 @@ if (!is.null(args$table)) {
                                 empirical.q = min(empirical.q),
                                 empirical.p.flag = max(empirical.p.flag)), lib]
 
-    x.test.summary[, description := description_from_fresh_kills(dt.fresh_kills,
-                                                                 my.id = roots_from_fresh_kills(dt.fresh_kills, my.id = lib)),
-                   lib]
+    if (!is.null(dt.fresh_kills)) x.test.summary[, description := description_from_fresh_kills(dt.fresh_kills,
+                                                                                               my.id = roots_from_fresh_kills(dt.fresh_kills, my.id = lib)),
+                                                 lib]
     
     fwrite(setorder(x.test.summary, -test.stat), summary.filename, sep = '\t')
 }
