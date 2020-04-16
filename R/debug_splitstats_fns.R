@@ -718,16 +718,19 @@ plot_debug_splits <- function(my.splits, n.hits, plot.libs = NULL, dt.fresh_kill
   plot_qq_null_and_test(dt.swaps.test, dt.swaps.null, test.stat.thresh = 5)
   plot_qq_null_and_test(dt.swaps.test, dt.swaps.null, plot.libs, test.stat.thresh = 5)
 
-  hist(dt.swaps.test$empirical.p, col='black', breaks = seq(0,1,.01), main = 'p-value histogram')
+    hist(dt.swaps.test$empirical.p, col='black', breaks = seq(0,1,.01), main = 'p-value histogram')
 
 
-  if (!is.null(plot.libs)) {
-    dt.swaps.hits.plot <- dt.swaps.test[my.id1 %in% plot.libs | my.id2 %in% plot.libs][order(test.stat,decreasing = T)]
-    dt.swaps.hits.plot <- head(dt.swaps.hits.plot, n.hits)
-  } else {
-    dt.swaps.hits.plot <- head(dt.swaps.test[order(test.stat,decreasing = T)], n.hits)
-  }
-  my.swap <- 1
+    if (!is.null(plot.libs)) {
+        cat('Restricting plot to libs:', plot.libs, '\n')
+        dt.swaps.hits.plot <- dt.swaps.test[my.id1 %in% plot.libs | my.id2 %in% plot.libs][order(test.stat,decreasing = T)]
+        dt.swaps.hits.plot <- head(dt.swaps.hits.plot, n.hits)
+    } else {
+        cat('Plotting top N libs:', n.hits, '\n')
+        dt.swaps.hits.plot <- head(dt.swaps.test[order(test.stat,decreasing = T)], n.hits)
+    }
+
+    my.swap <- 1
 
   for (my.swap in dt.swaps.hits.plot[, .I]) {
     plot_putative_contam_squares_heatmap(my.splits, dt.swaps.hits.plot, my.swap, dt.fresh_kills)
